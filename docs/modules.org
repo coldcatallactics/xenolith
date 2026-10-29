@@ -1,0 +1,381 @@
+#+TITLE: Modules
+#+SUBTITLE: The Xenolith site layer and what it installs
+#+STARTUP: content
+
+* Site layer
+
+Autolith loads a site =init.lisp= before trusted directory and user
+initialization, after the tracked source and any selected private image commit.
+Xenolith owns that layer.
+
+- =site/init.lisp= derives the root from =*user-init-pathname*=, loads the
+  loader, then loads the modules.
+- =site/xenolith.lisp= holds the manifest, the loader, and the reporting
+  surface. =*xenolith-modules*= is an ordered list of =(NAME . RELATIVE-PATH)=
+  entries. A module that signals a serious condition is recorded as =failed=,
+  reported on stderr, and startup continues.
+- Each pass releases the wrappers a previous pass installed before loading, so
+  modules rebuild them from the tracked definitions in manifest order.
+- =*xenolith-site-root*= and =*xenolith-module-records*= describe the current
+  load. =(xenolith-report)= prints version, root, installed theme, and each
+  module's status and load time.
+- =*xenolith-install-themes-p*= exists for checks and headless tooling: bind it
+  to =nil= to load the layer without changing the session's presentation.
+- The =:xenolith= feature is set once the layer has loaded, so an inclusion
+  from a personal init file cannot load the same tree twice.
+
+A module is ordinary Common Lisp in the =AUTOLITH= package. It may install a
+theme, register commands or contributors, define roles, or add skills. It does
+not edit the tracked source tree.
+
+* theme/gruvbox
+
+Installs =xenolith-gruvbox=, a gruvbox-dark theme.
+
+- Every name in =*terminal-style-names*= gets a style, so a new upstream style
+  degrades to the terminal default instead of breaking the table.
+- =#ebdbb2= and =#282828= are imposed as terminal defaults while the
+  fullscreen viewport is active, which paints blank rows instead of leaving
+  them transparent.
+- The status band comes from those same names: nine =:status-*= and
+  =:compaction-*= styles carry =bg2= =#504945=, and the status row already
+  fills its width with them.
+- Surface fills are backgrounds and, where the look needs a tone, foregrounds
+  too: =:surface= =bg1= =#3c3836=, =:surface-code= =bg0Soft= =#32302f=,
+  =:surface-diff-add= =#2f3a2a= with plain =green=, and =:surface-diff-remove=
+  =#3d2b2a= with plain =red=.
+- Code and syntax colors are chosen per role: =:code= and
+  =:syntax-string= =yellowBright=, =:syntax-type= =aquaBright=,
+  =:syntax-function= =greenBright=, =:syntax-keyword= =redBright=,
+  =:syntax-comment= =gray=.
+- The theme is registered always and installed unless the session explicitly
+  chose another theme through =--almighty= or a saved preference. Registration
+  replaces any earlier =:xenolith-gruvbox=, so reloads do not stack.
+- The boot mark builder is wrapped: the tracked =terminal-ui--boot-art= is an
+  =ecase= over =:autolith= and =:almighty=, so =:xenolith-gruvbox= aborted
+  startup once the boot screen painted. :xenolith-gruvbox now answers with
+  =*xenolith-boot-rows*=, XENOLITH in the Cardinals block face: four rows of 58
+  cells inside the panel's 60-cell field, plus the title "COMPOSED TERMINAL"
+  and the tagline "A SITE TREE THAT AUTOLITH LOADS". Every other theme delegates
+  to the tracked builder, and a condition falls back to Autolith's mark; the
+  original is captured once and a failure is kept in
+  =*xenolith-gruvbox-boot-failure*=.
+- The remaining tones: =:tool= =fg0= for a tool title,
+  =:annotation= =fg2= for tool output and reasoning text, =:dim= =bg4=, and
+  =:selected= a =bg2= fill rather than reverse video. =:hint= keeps the muted
+  grey for hints.
+
+* look/fullscreen
+
+Selects Autolith's composed terminal surface for the session.
+
+- Autolith's inline UI prints into the terminal's own scrollback, so per-row
+  chrome (block surfaces, diff rows, a pinned composer) has nowhere to live.
+  Xenolith sets =:fullscreen-p= on the configuration while the site layer loads,
+  before the application creates its UI: the frame fills the terminal, the
+  composer is pinned at the bottom, and the transcript keeps its own viewport.
+- Entering the surface takes the terminal's alternate buffer for the session;
+  on exit Autolith restores the terminal and prints the retained transcript to
+  the normal screen.
+- Noninteractive commands build an immutable configuration.
+  =xenolith-fullscreen-enable= leaves those alone, so =autolith models= and other
+  headless runs keep their own value.
+- =XENOLITH_FULLSCREEN=off= keeps the inline UI at load; a serious condition is
+  kept in =*xenolith-fullscreen-failure*= and the session keeps its surface.
+
+* look/composer
+
+Wraps =terminal-ui--composer-rows= to give the prompt a filled box.
+
+- One column of margin, a =▌= effort bar on every row, and one blank row above
+  and below. The bar wears the reasoning effort's style: =none= dim, =low=
+  aqua, =medium= blue, =high= purple, =xhigh= red, =max= and =ultra= orange.
+- Each row keeps its representation: span lists stay span lists, rendered rows
+  stay rendered rows, and only the text and cursor shift.
+- Every row is filled with =:surface= and carries the =▌= bar, so the box
+  reads as one band. A wrapped draft is re-wrapped to the columns left of the
+  bar, so every physical line is boxed and the band does not break at a wrap.
+  The box is three rows while the draft fits one line: the tracked builder's
+  trailing empty row and the label row are dropped, and
+  =*xenolith-composer-padding*= sets the blank rows above and below. A module
+  that sets =*xenolith-composer-mode-label-function*= gets the label row back;
+  no module sets one, so the mode shows only in the status band. The cursor stays
+  in the draft's row.
+  =*xenolith-composer-fill-p*= turns the fill off for a caller that wants the box
+  unfilled; the margin, the bar, and the blank rows stay.
+- The tracked definition is captured once. A serious condition falls back to
+  the original rows and is kept in =*xenolith-composer-failure*=.
+- =XENOLITH_COMPOSER=off= skips the wrap at load. =XENOLITH_LOG=/path= appends
+  one diagnostic line per failure.
+
+* look/spacing
+
+Widens the transcript.
+
+- Response bodies carry three columns on each side: the tracked
+  =application--indented-body= is wrapped, and its wrap width shrinks by the
+  extra margins.
+- Tool body rows sit five columns in, two further than text, through a wrapped
+  =application--tool-row-spans=; the clip width follows the inset.
+- =*xenolith-assistant-indent*= and =*xenolith-tool-indent*= hold the margins.
+  =XENOLITH_SPACING=off= skips the wrap at load.
+- A serious condition falls back to the tracked builder and is kept in
+  =*xenolith-spacing-failure*=; =XENOLITH_LOG=/path= appends one diagnostic line.
+
+* look/surfaces
+
+Paints row fills over the tracked row builders.
+
+- A row states its fill with a leading zero-cell span whose style names one of
+  =:surface=, =:surface-code=, =:surface-diff-add=, or =:surface-diff-remove=.
+  The wrapped =terminal--render-spans= paints that run with the style's
+  background and re-applies it after every reset; rows without a marker render
+  exactly as the tracked function does. The marker is found anywhere in an
+  entry, so a block with a plain header still fills its body rows.
+- Builders pad a row to the terminal width before the renderer sees it, so plain
+  and styled text agree. Tool body rows take =:surface=, except a line opening
+  with =+= or =-= followed by a space, which takes the diff tint; a reasoning
+  summary takes =:surface-code=.
+- =application--tool-row-spans= is wrapped after =look/spacing= has indented it,
+  and =application--reasoning-summary-rows= supplies the reasoning rows.
+  =xenolith--chain= remembers the definition underneath and keeps each module's
+  wrapper in manifest order, so a reload replaces that module's wrapper instead
+  of stacking another.
+- Tool, diff, and reasoning rows are inset by =*xenolith-surface-inset*= (5):
+  block pad): the row's own leading spaces become the margin, the fill spans the
+  columns between the two margins, and =*xenolith-surface-padding*= fills two
+  columns of the panel before the text on every row, headers included.
+  =application--tool-entry= is wrapped so the header and detail rows take the
+  same fill and inset.
+- A user message body is rebuilt row by row on =:surface=: one blank fill row
+  above and below, and a panel as wide as the longest line plus two columns, so
+  the fill stops just past the text instead of reaching the frame edge. Tool body
+  rows and reasoning rows take =:annotation= for plain text.
+- =syntax--terminal-span= is wrapped: =:added-gutter= and =:removed-gutter=
+  take =:surface-diff-add= and =:surface-diff-remove=, so a diff sign reads in
+  plain green or red, and =:variable=, =:operator=, =:punctuation= take
+  =:syntax-property=, =:syntax-escape=, and =:plain=. The bundled grammars emit
+  only keyword, function, and comment, so the last three are latent.
+- =XENOLITH_SURFACES=off= restores the tracked builders at load. A serious
+  condition falls back to the previous definition and is kept in
+  =*xenolith-surfaces-failure*=; =XENOLITH_LOG=/path= appends one line per
+  failure.
+
+* look/band
+
+Paints the two full-bleed rows of the composed frame edge to edge.
+
+- =terminal-ui--status-row-at= renders at =width - 2N= and the wrapper fills the
+  inset columns with the band background, so the band spans the terminal while
+  its content stays inside the frame.
+- =terminal-ui-fullscreen--legend-row= is filled the same way: the wrapper paints
+  the inset and the tail after the legend text with the band background.
+- The band background comes from =*xenolith-band-fill-style*= (=:status-plain=),
+  the style the theme already gives the band's background.
+- The status band's effort word takes the effort's style, so it agrees with the
+  composer bar.
+- =XENOLITH_BAND_PAD= sets the content inset (default 2) and =XENOLITH_BAND=off=
+  skips the wrap at load. A serious condition falls back to the tracked builder
+  and is kept in =*xenolith-band-failure*=.
+
+* look/legend
+
+Drops the key-hint legend above the status band.
+
+- Wraps =terminal-ui-fullscreen--frame=. The tracked frame spends one row
+  between the transcript and the status band on the legend that carries the
+  =LIVE= marker and the scrolling keys; the wrapper composes the same frame
+  without that row, so the transcript window keeps it and the frame still fills
+  the terminal exactly.
+- The status band, the activity rows, and the composer stay where they were.
+- =XENOLITH_LEGEND=on= keeps the tracked legend row. A serious condition falls
+  back to the tracked frame and is kept in =*xenolith-legend-failure*=.
+
+* look/markdown
+
+Adds markdown chrome.
+
+- Wraps =terminal-markdown-render-line=. A quoted line takes
+  =*xenolith-markdown-quote-style*= (the theme's grey), a rule takes
+  =*xenolith-markdown-rule-style*= (the dim tone), and every row of a fenced
+  block swaps its two-space indent for =*xenolith-markdown-border*= in the
+  row's own style.
+- Line text, width, headings, inline code, and emphasis are left as the tracked
+  renderer emits them; only styles and the two indent cells change.
+- A link has no URL span to quiet: the pinned renderer emits a link as literal
+  text, so =mdLinkUrl= has no counterpart yet.
+- =XENOLITH_MARKDOWN=off= skips the wrap at load. A serious condition falls back
+  to the tracked renderer and is kept in =*xenolith-markdown-failure*=.
+
+* edit/helix
+
+Adds Helix modality over the composer line editor.
+
+- Insert is the startup mode and keeps the tracked bindings; =Esc= returns to
+  normal. Helix itself starts in normal mode; Xenolith starts a prompt in
+  insert on purpose.
+- Selection ranges are Helix gap indices: the anchor and head may lie in either
+  order and the range covers the gaps between them. =w= from a word start
+  selects the word and its trailing whitespace, =e= selects through the word end
+  and leaves its head past it, and =b= selects back to the previous word start
+  and keeps the character under the block. At the end of the buffer =w= still
+  selects the whole word. Newlines are bridged, whitespace boundary starts
+  follow =move_word_impl=, and a failed motion leaves the selection unchanged.
+  Normal motions replace the selection; select mode extends it with Helix's
+  =put_cursor= semantics. =h j k l= move the one-character block cursor, =gh=
+  and =gl= go to line bounds, =gs= to the first non-blank, =gg= to the buffer
+  start, =ge= to the last non-empty line, and =G= with a count goes to that
+  line. Counts repeat a motion.
+- The tracked movement events take the same Helix keys: =Left= and =Right= are
+  =h= and =l=, =Up= and =Down= are =k= and =j=, =Ctrl-Left= and =Ctrl-Right=
+  are =b= and =w=, and =Home= and =End= are =gh= and =gl=. Every other tracked
+  editing event (history, the =Ctrl-K= kills, newline insertion, and the line
+  event) is ignored in normal and select mode, so no key moves the cursor
+  behind the selection's back.
+- =v= enters select mode, where every motion extends the current selection;
+  =v= or =Esc= returns to normal.
+- A Helix cursor is a single-width selection, so normal and select mode paint
+  the head character as a reverse-video block: the character under the cursor,
+  or the cell after the prompt while the prompt is empty. The selection is
+  painted only while it spans more than that cell, so =w=, =b=, =e=, =x=, =X=,
+  and =%= are the keys that leave a range marked.
+- =x= selects the current line and its line break, and repeats to extend. =X=
+  selects the current line bounds and line break, preserves direction, and
+  ignores counts. =%= selects the buffer and =;= collapses the selection. =d=,
+  =c=, and =y= act on the selection and ignore counts; =d= and =y= return to
+  normal, while =c= on a linewise selection opens a blank line above. =p=
+  repeats the kill with its count, inserts after a linewise kill, selects the
+pasted span, and leaves select mode. =i=, =a=, =I= (first non-blank), =A=,
+=o=, and =O= enter insert; =o= and =O= use the selection line and repeat with a
+count, and =o= places the cursor at the start of the opened line below. =:=
+opens command mode. The selection uses the =:selected= style.
+- Command mode writes a line beginning with =:=, and insert mode opens it when
+  =:= starts an empty prompt, so the command line is one key away from the
+  composer. =Enter= rewrites the line to its slash form and submits it through
+  the ordinary command path, so =:settings= and =/settings= are one command; a
+  line that names no registered command is submitted as ordinary input, so a
+  prompt that merely begins with a colon still reaches the model. Its candidate
+  menu is the slash line's: =terminal-ui--matching-completions= is wrapped so a
+  colon command line lists the same registry entries with the colon standing in
+  for the slash, aliases included and shadowed the same way, and =Tab= cycles
+  them as =Enter= takes the selected name. =Up= and =Down= recall earlier
+  command lines while the menu is closed, and =Esc= dismisses the menu before it
+  cancels the line.
+- The active mode is shown in the status band immediately left of the model
+  (=NOR=, =INS=, =SEL=, =:=). The terminal cursor shape follows the mode for
+  inline and fullscreen UIs alike: a block in normal, select, and command mode,
+  a bar in insert. The painted block does not depend on the terminal honouring
+  that request.
+- Mouse reporting stays on in every mode by default: the wheel arrives as a
+  button report, so releasing it outside text entry would stop the transcript
+  from scrolling in the alternate screen. Text selection uses the terminal's
+  Shift bypass. =XENOLITH_HELIX_MOUSE=select= releases the mouse in normal and
+  select mode instead, so a plain drag runs the terminal's own selection.
+  =terminal-ui-fullscreen-enter= enables reporting on every entry, so the module
+  forgets its tracked state there and repaints it with the next frame.
+- =XENOLITH_HELIX=off= skips the layer at load; a serious install condition is
+  kept in =*xenolith-helix-failure*=, and the session keeps the tracked editor.
+- While a turn is running, =Esc= reaches the editor in insert, select, and
+  command mode and only interrupts from normal mode: the first escape leaves the
+  mode, the second cancels. =application-input-controller--process-event= records
+  the escape's mode and =application-input-controller--request-active-turn-can
+  cellation= declines the cancellation outside it.
+
+The keys and range semantics follow Helix's tutor and default keymap, with word
+categories from =helix-core/src/chars.rs=, word movement from
+=helix-core/src/movement.rs=, ranges from =helix-core/src/selection.rs=, and
+command behavior from =helix-term/src/commands.rs=. Deliberate prompt
+differences are insert startup, =:= dispatching Autolith slash commands, and no
+auto-indent or comment continuation for =I=, =o=, or =O=.
+* dev/context-budget
+
+Bounds a long child run by context rather than by its queue.
+
+- A request-local contributor runs before each provider request and reads the
+  fill of the conversation's context window. Two sources, both approximate: the
+  newest reported provider total, stale by one request and counting that
+  response's output, and the idle meter's character estimate, which omits
+  request-local contributions and, without a registry, tool schemas. They pick a
+  phase boundary; neither is rendered anywhere.
+- Three ascending phases deliver one instruction each: =:finish= starts nothing
+  new, =:finalize= verifies and hands off, =:urgent= reports as it stands. The
+  contribution is =mandatory=, priority =90=, =:while-relevant=, and carries no
+  evidence, so the model receives behaviour and a phase name, never a number.
+- The phase is latched per conversation and only ever rises, so a compaction
+  resetting the reported total cannot re-arm a run that has already begun
+  winding down. Compaction requests themselves are skipped. The latch keeps 64
+  conversations, newest activity first.
+- =*xenolith-context-budget-roles*= is empty by default, which delivers nothing.
+  A policy layer sets it, and owns =*xenolith-context-budget-phases*= and
+  =*xenolith-context-budget-instructions*= as well. A role is matched against
+  the sentence Autolith writes into a child's goal context, so the name must
+  equal the agent definition's =:name=. Agent-specific policy stays in the layer
+  that owns that agent.
+- =*xenolith-context-budget-minimum-window*= gates the mechanism on a large
+  window, =1000000= tokens by default. A smaller window reaches its own
+  compaction limit first, and the phases only pay where a run can fill hundreds
+  of thousands of tokens before it loses the task.
+- =XENOLITH_CONTEXT_BUDGET=off= disables delivery at load. A serious condition
+  or a non-ascending threshold set is kept in =*xenolith-context-budget-failure*=
+  and logged through =XENOLITH_LOG=; the request proceeds without the phase.
+- =(xenolith-context-budget-status)= returns the latched
+  =(CONVERSATION-ID PHASE FILL)= rows and =(xenolith-context-budget-reset)=
+  clears them, both under the module's lock.
+- Verify against the defaults: with a window at or above the minimum, =0.10=,
+  =0.30=, =0.40=, =0.46= and =0.60= map to =:none=, =:finish=, =:finalize=,
+  =:urgent= and =:urgent=; a latch advanced at =0.41= stays =:finalize= when the
+  next fill is =0.05=; a contributor call whose goal context names a bound role
+  returns the phase text, while an empty role list, a compaction request, an
+  unbound role and a window below the minimum return =nil=.
+* dev/preview
+
+Headless composition for look work.
+
+- =(xenolith-preview :columns 100 :rows 32)= builds a recording terminal and a
+  fullscreen UI, seeds the registered sections, composes
+  =terminal-ui-fullscreen--frame=, and prints every row without its ANSI
+  controls. It returns the painted rows and the cursor, so a REPL can assert on
+  geometry.
+- Sections are named. =xenolith-preview-register= replaces one in place and
+  =xenolith-preview-unregister= removes it, so reloading the site does not stack
+  content. The shipped sections are =:user=, =:answer=, =:tool=, and
+  =:thinking=.
+- pty capture is unreliable in this environment, so this is the check for
+  composer and spacing changes. A real terminal still decides the final look.
+
+* Reference
+
+| Module           | File                                | Configuration                                |
+|------------------+-------------------------------------+----------------------------------------------|
+| =theme/gruvbox=  | =site/modules/theme/gruvbox.lisp=   | =*xenolith-install-themes-p*= (checks)       |
+| =look/fullscreen= | =site/modules/look/fullscreen.lisp= | =XENOLITH_FULLSCREEN=                        |
+| =look/composer=  | =site/modules/look/composer.lisp=   | =XENOLITH_COMPOSER=, =XENOLITH_LOG=, defvars |
+| =look/spacing=   | =site/modules/look/spacing.lisp=    | =XENOLITH_SPACING=, indent defvars           |
+| =look/surfaces=  | =site/modules/look/surfaces.lisp=   | =XENOLITH_SURFACES=                          |
+| =look/band=      | =site/modules/look/band.lisp=       | =XENOLITH_BAND=, =XENOLITH_BAND_PAD=         |
+| =look/legend=    | =site/modules/look/legend.lisp=     | =XENOLITH_LEGEND=                            |
+| =look/markdown=  | =site/modules/look/markdown.lisp=   | =XENOLITH_MARKDOWN=                          |
+| =edit/helix=     | =site/modules/edit/helix.lisp=      | =XENOLITH_HELIX=, =XENOLITH_HELIX_MOUSE=, =XENOLITH_LOG= |
+| =dev/preview=    | =site/modules/dev/preview.lisp=     | section registry, =(xenolith-preview)=       |
+| =dev/context-budget= | =site/modules/dev/context-budget.lisp= | =XENOLITH_CONTEXT_BUDGET=, role/phase/instruction/window defvars |
+
+* Status
+
+Implemented: site layer, =xenolith-gruvbox= with the status band and the four
+surface fills, the composed terminal surface, =dev/preview=,
+=dev/context-budget=, =look/band=, =look/legend=, =look/markdown=,
+=look/composer=, =look/spacing=, =look/surfaces=, =edit/helix= with normal and
+select modes, its status-band mode indicator, and a locked flake.
+
+Checks: =AUTOLITH_SITE_CONFIG_ROOT=$PWD/site autolith models= exits 0 with no
+module failure line; the theme resolves 75 of 75 semantic styles; a
+worker load reports every module loaded, and =(xenolith-preview)= draws the
+composer, tool, diff, and reasoning bands with =:surface=, =:surface-code=,
+=:surface-diff-add=, and =:surface-diff-remove=; a worker check matched =w=, =e=,
+and =b= against Helix's =movement.rs= tables, including buffer edges,
+whitespace, and newlines; a worker check opened command mode, typed =:s=, and
+reads back the colon candidate menu, an accepted =:ste = line for a command
+with an argument, and the restored =:s= after =Esc=; inline startup renders the
+prompt with the bar and the status band with INS left of the model; =nix build
+.#site= and =nix build .#default= both build from the locked flake, the latter
+passing the SBCL 2.6.6 image validation.

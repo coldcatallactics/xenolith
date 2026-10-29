@@ -1,0 +1,55 @@
+#+TITLE: Xenolith
+#+SUBTITLE: An "opinionated" Autolith distribution
+#+STARTUP: content
+
+Xenolith is to [[https://github.com/lambda-symbolics/autolith][Autolith]] what Doom Emacs and
+Spacemacs are to Emacs, a curated configuration layer that supplies
+presentation, defaults, and commands without forking the upstream project.
+
+* Install
+
+#+BEGIN_SRC sh
+nix profile install github:coldcatallactics/xenolith
+xenolith
+#+END_SRC
+
+On NixOS, add =inputs.xenolith.url = "github:coldcatallactics/xenolith";=
+and the module to the host:
+
+#+BEGIN_SRC nix
+modules = [
+  inputs.xenolith.nixosModules.default
+  { programs.xenolith.enable = true; }
+];
+#+END_SRC
+
+With Home Manager, in a module where =inputs= is in scope:
+
+#+BEGIN_SRC nix
+{
+  imports = [ inputs.xenolith.homeManagerModules.default ];
+  programs.xenolith.enable = true;
+}
+#+END_SRC
+
+Both install the =xenolith= launcher, which carries its own site tree.
+
+Without Nix, with =autolith= on =PATH= (upstream builds from source with
+=./script/bootstrap= and Quicklisp), clone the tree and use its site layer:
+
+#+BEGIN_SRC sh
+git clone https://github.com/coldcatallactics/xenolith
+AUTOLITH_SITE_CONFIG_ROOT=$PWD/xenolith/site autolith
+#+END_SRC
+
+The flake packages =site/= and a =xenolith= launcher that exports
+=AUTOLITH_SITE_CONFIG_ROOT= and execs the pinned upstream binary.
+
+Xenolith is ISC-licensed; see =LICENSE=.
+
+* Documentation
+
+- [[file:docs/modules.org][Modules]]: the site layer, every module, its switches, and
+  status.
+- [[file:docs/look.org][The Xenolith look]]: the composed look, the theme, markdown chrome,
+  and modality.

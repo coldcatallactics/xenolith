@@ -1,0 +1,162 @@
+#+TITLE: The Xenolith look
+#+SUBTITLE: The composed terminal look in Autolith
+
+The look is a gruvbox palette over a composed terminal layout: a filled frame,
+an input box with an effort bar, and blocks that separate reasoning from prose
+by surface rather than by rules. Where each piece lives:
+
+| Feature             | Effect                                       | Xenolith                        |
+|----------------------+----------------------------------------------+---------------------------------|
+| Gruvbox palette      | Colors for text, tools, diffs, code          | =theme/gruvbox=                 |
+| Composed frame       | Pinned composer, own transcript viewport     | =look/fullscreen=               |
+| Input box            | Filled interior, left bar, blank rows        | =look/composer=                 |
+| Tool and diff blocks | Filled rows, tinted add and remove lines     | =look/surfaces=                 |
+| Reasoning block      | Quiet body on a code surface                 | =look/surfaces=                 |
+| Assistant typography | Headings, inline code, quiet metadata        | =theme/gruvbox=                 |
+| Status band          | Mode, model, effort, context, branch         | theme band styles               |
+| Modal editing        | Helix normal, insert, and command modes      | =edit/helix=                    |
+
+* Surface
+
+Autolith's inline UI prints into the terminal's own scrollback, so per-row
+chrome has nowhere to live. Xenolith selects the composed surface while the
+site layer loads, before the application creates its UI:
+
+- the frame fills the terminal and is repainted in place;
+- the transcript keeps its own viewport, with message paging and
+  jump-to-latest;
+- the composer and the status band are pinned below it;
+- the session runs in the alternate buffer and Autolith prints the retained
+  transcript to the normal screen on exit.
+
+=XENOLITH_FULLSCREEN=off= returns the inline UI. =(xenolith-preview)= composes
+the frame headlessly at a given size, which is how layout changes are checked
+here; a real terminal decides the final look.
+
+* Theme
+
+Autolith resolves every semantic style through =*terminal-style-table*=, a
+list of =(NAME . STYLE)= pairs keyed by =*terminal-style-names*=. A
+=terminal-theme= carries that table plus optional 24-bit foreground and
+background; while the fullscreen viewport is active those defaults are imposed
+on the terminal, which is why blank rows become gruvbox =bg0= without patching
+the renderer.
+
+=*xenolith-gruvbox-styles*= maps each semantic name to a palette color and
+emphasis. Names without an entry stay plain by design, so new Autolith styles
+degrade to the terminal default instead of breaking the theme.
+
+The status band reuses those style names: =*xenolith-gruvbox-band-styles*=
+adds a =bg2= background to the nine status and compaction styles, and the
+status row already fills its full width with them, so no renderer change is
+needed for the band.
+
+* Composer
+
+=look/composer= wraps =terminal-ui--composer-rows=. It adds one column of
+margin, a =▌= effort bar, and one blank row above and below, and keeps each
+row's representation: span lists stay span lists, rendered rows stay rendered
+rows, and only the text and the cursor offset shift. The tracked definition is
+captured once, so reloads do not stack.
+
+Any serious condition inside the wrapper falls back to the original rows and
+is kept in =*xenolith-composer-failure*=. Two escape hatches exist:
+=XENOLITH_COMPOSER=off= skips the wrap at load, and =XENOLITH_LOG=/path=
+appends one line per failure to that file.
+
+Every row is filled with =:surface=, including the blank rows above and below
+the draft. The box is three rows while the draft fits one line and grows only
+as it wraps: the tracked builder's trailing empty row and the label row are
+dropped, and =*xenolith-composer-padding*= sets the blank rows. A module that
+sets =*xenolith-composer-mode-label-function*= gets a last row with the label
+right-aligned; no module sets one, so the active mode shows only in the status
+band immediately left of the model, which =edit/helix= owns.
+
+* Diffs
+
+Autolith has no diff-specific styles. =syntax--terminal-span= maps Colordiff
+roles onto =:success=, =:failure=, and =:dim=, which also style tool success
+and failure. Context lines stay neutral; an added or removed line takes the
+row fill's plain green or red on its sign and on the text beside it.
+
+* Modality
+
+=edit/helix= gives the composer Helix-style modes.
+
+- Normal uses Helix's word categories and gap-index ranges: =w= selects the
+  word and its trailing whitespace, =e= through the word end, and =b= back to
+  the previous word start. Each normal motion replaces the previous selection;
+  select mode extends it. =h j k l= move the one-character block cursor. =gh=
+  and =gl= go to line bounds, =gs= to the first non-blank, =gg= to the buffer
+  start, =ge= to the last non-empty line, and =G= with a count goes to that
+  line. =v= enters select mode; =v= or =Esc= returns to normal.
+- =x= selects the line and its line break and extends on repeat; =X= selects
+  the line bounds and line break, preserves direction, and ignores counts; =%=
+  selects the buffer; =;= collapses. =d=, =c=, and =y= ignore counts; =d= and
+  =y= return to normal, while =c= on a linewise selection opens a blank line
+  above. =p= repeats the kill with its count, inserts after a linewise kill,
+  selects the pasted span, and leaves select mode. =i=, =a=, =I= (first
+  non-blank), =A=, =o=, and =O= enter insert; =o= and =O= use the selection
+  line and repeat with a count. =Enter= breaks the line and stays normal, and
+  =:= opens command mode.
+- Command mode writes a line beginning with =:=, and insert mode opens it when
+  =:= starts an empty prompt. =Enter= rewrites it to the slash form and submits
+  through the ordinary command path; a colon line that names no command is sent
+  as an ordinary prompt. Its candidates are the slash line's: typing a name
+  prefix lists the same commands with a colon, =Tab= cycles them, =Enter= takes
+  the selected name, =Up= and =Down= recall earlier command lines while the menu
+  is closed, and =Esc= dismisses the menu before it cancels the line.
+
+The status band names the active mode immediately left of the model: =NOR= in
+normal, =SEL= in select, =:= in command, and =INS= in insert. While a turn
+runs, =Esc= still leaves insert, select, or command mode and only interrupts
+the turn from normal mode, so the first escape leaves the mode and the second
+cancels.
+
+The mouse keeps the viewport's button reports in every mode by default, because
+the wheel is one of them: releasing the reports outside text entry also stops
+the transcript from scrolling in the alternate screen. Text selection then uses
+the terminal's Shift bypass. =XENOLITH_HELIX_MOUSE=select= releases the mouse in
+normal and select mode instead, so a plain drag selects transcript text.
+
+The keys and ranges follow Helix's tutor and default keymap, with word
+categories from =chars.rs=, word movement from =movement.rs= (including its
+buffer-edge and newline cases), ranges from =selection.rs=, and commands from
+=commands.rs=. Deliberate prompt differences are insert startup, =:=
+dispatching Autolith slash commands, and no auto-indent or comment
+continuation.
+
+* Look coverage
+
+- *Chrome band.* =look/band= paints the status band and, when the legend row
+  is kept, the legend row edge to edge on the theme's band background, and insets
+  their content by =XENOLITH_BAND_PAD=, defaulting to 2.
+- *Legend row.* =look/legend= drops the tracked legend above the status band, so
+  the hint line with =LIVE= and the scrolling keys is gone and the transcript
+  keeps its row; =XENOLITH_LEGEND=on= restores it.
+- *Selected row.* =:selected= is a =bg2= fill rather than reverse video.
+- *User message.* =look/surfaces= rebuilds a user message body row by row on
+  =:surface= =bg1=: one blank fill row above and below, and a panel as wide as
+  the longest line plus two columns, so the fill stops just past the text instead
+  of running to the frame edge.
+- *Block inset.* Tool, diff, and reasoning rows share a five-column block pad:
+  the panel fill, painted with its own background, sits before the text on every
+  row. Tool headers and detail rows are wrapped so the whole block is one panel.
+- *Body tones.* Tool output and reasoning text take =:annotation= =fg2=, and
+  =:dim= is =bg4=. Reasoning text would take =fg3=, one palette step quieter,
+  but the closed style set has no =fg3= name.
+- *Tool title.* =:tool= is =fg0=.
+- *Diff signs.* =syntax--terminal-span= is wrapped so =:added-gutter= and
+  =:removed-gutter= take =:surface-diff-add= and =:surface-diff-remove=, whose
+  styles now carry plain =green= and =red=. Diff signs read in the plain tones
+  while tool success and failure keep their bright styles.
+- *Markdown.* =look/markdown= wraps =terminal-markdown-render-line=: a quoted
+  line takes the theme's grey, a rule takes =bg4=, and a fenced row swaps its
+  two-space indent for a =│= border in the row's own style.
+- *Effort ramp.* The composer bar wears the reasoning effort's style: =none=
+  dim, =low= aqua, =medium= blue, =high= purple, =xhigh= red, =max= and =ultra=
+  orange. The status band's effort word follows it; =application--status-details=
+  is wrapped to record the level.
+
+Every landed item keeps the module rules: a switch, a recorded condition, and a
+check through =(xenolith-report)= and =(xenolith-preview)=.
