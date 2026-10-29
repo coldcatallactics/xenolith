@@ -14,7 +14,7 @@ presentation, defaults, and commands without forking the upstream project.
 
 - *Helix modality*: normal, select, insert, and command modes with Helix's word
   motions in the composer; the mode shows in the status band.
-- *The look*: an █[PROVIDER CREDENTIAL REDACTED]█-inspired composed terminal over a gruvbox palette: a fullscreen
+- *The look*: an Opencode-inspired composed terminal over a gruvbox palette: a fullscreen
   frame, filled tool, diff, and reasoning surfaces, a composer with an effort bar.
 - *Context budgeting* (opt-in): bounds a long child run by context fill rather
   than queue depth, handing the model one instruction per phase.
