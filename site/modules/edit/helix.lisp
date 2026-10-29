@@ -13,9 +13,9 @@
 ;;;; registry with the colon standing in for the slash. Insert is the startup
 ;;;; mode.
 ;;;;
-;;;; Mouse reporting stays on in every mode by default, because the wheel is one
-;;;; of the reports the fullscreen viewport owns; XENOLITH_HELIX_MOUSE=select
-;;;; releases it outside text entry for a terminal-owned plain-drag selection.
+;;;; Mouse reporting is released outside text entry by default, so a plain drag
+;;;; in normal or select mode runs the terminal's own selection;
+;;;; XENOLITH_HELIX_MOUSE=scroll keeps the reports there for the wheel.
 
 (defparameter *xenolith-helix-bound-events*
   '(:escape :insert :insert-newline :paste :submit
@@ -48,14 +48,13 @@ nothing had selected.")
   "Whether the site layer installs Helix modality.")
 
 (defparameter *xenolith-helix-mouse-scroll-p*
-  (not (equal (uiop:getenv "XENOLITH_HELIX_MOUSE") "select"))
+  (equal (uiop:getenv "XENOLITH_HELIX_MOUSE") "scroll")
   "Whether normal and select mode keep the viewport's mouse reports.
 
-The wheel is a mouse report, so releasing the mouse outside text entry also
-stops the transcript from scrolling under it. Keeping the reports lets the wheel
-scroll in every mode; text selection then uses the terminal's Shift bypass.
-Set XENOLITH_HELIX_MOUSE=select to free the mouse in those modes and select
-with a plain drag instead.")
+The wheel is a mouse report, so keeping it in those modes also takes the drag
+away from the terminal: text selection then needs the terminal's Shift bypass.
+Released by default, a plain drag selects, and PageUp and PageDown scroll the
+transcript. Set XENOLITH_HELIX_MOUSE=scroll to keep the wheel in those modes.")
 
 (defparameter *xenolith-helix-motion-events*
   '((:left . #\h) (:right . #\l) (:up . #\k) (:down . #\j)
@@ -1434,11 +1433,10 @@ gives insert its bar and normal its block where it is honoured."
   "Return the mouse reporting controls UI's mode wants, or NIL.
 
 Insert and command mode keep the viewport's button reports, so a click still
-places the composer caret. Normal and select mode keep them too by default,
-because the wheel arrives as one of those reports; releasing the mouse there
-would leave the transcript unscrollable in the alternate screen. With
-*XENOLITH-HELIX-MOUSE-SCROLL-P* off, those modes release the mouse so a plain
-drag runs the terminal's own selection."
+places the composer caret and the wheel scrolls. Normal and select mode release
+the mouse, so a plain drag runs the terminal's own selection and PageUp and
+PageDown scroll the transcript. With *XENOLITH-HELIX-MOUSE-SCROLL-P* on, those
+modes keep the reports too and selection needs the terminal's Shift bypass."
   (case (xenolith-helix-mode ui)
     ((:insert :command) (mouse-reporting-enable-sequence))
     ((:normal :select)

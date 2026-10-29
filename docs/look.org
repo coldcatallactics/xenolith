@@ -113,11 +113,12 @@ runs, =Esc= still leaves insert, select, or command mode and only interrupts
 the turn from normal mode, so the first escape leaves the mode and the second
 cancels.
 
-The mouse keeps the viewport's button reports in every mode by default, because
-the wheel is one of them: releasing the reports outside text entry also stops
-the transcript from scrolling in the alternate screen. Text selection then uses
-the terminal's Shift bypass. =XENOLITH_HELIX_MOUSE=select= releases the mouse in
-normal and select mode instead, so a plain drag selects transcript text.
+Insert and command mode keep the viewport's button reports, so a click places
+the caret and the wheel scrolls. Normal and select mode release them, so a plain
+drag selects transcript text and =PageUp= and =PageDown= scroll. The wheel is
+one of those reports, so keeping it in those modes costs the plain drag:
+=XENOLITH_HELIX_MOUSE=scroll= does that, and selection then uses the terminal's
+Shift bypass.
 
 The keys and ranges follow Helix's tutor and default keymap, with word
 categories from =chars.rs=, word movement from =movement.rs= (including its

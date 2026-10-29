@@ -266,11 +266,11 @@ opens command mode. The selection uses the =:selected= style.
   inline and fullscreen UIs alike: a block in normal, select, and command mode,
   a bar in insert. The painted block does not depend on the terminal honouring
   that request.
-- Mouse reporting stays on in every mode by default: the wheel arrives as a
-  button report, so releasing it outside text entry would stop the transcript
-  from scrolling in the alternate screen. Text selection uses the terminal's
-  Shift bypass. =XENOLITH_HELIX_MOUSE=select= releases the mouse in normal and
-  select mode instead, so a plain drag runs the terminal's own selection.
+- Insert and command mode keep mouse reporting, so a click places the caret and
+  the wheel scrolls. Normal and select mode release it by default, so a plain
+  drag runs the terminal's own selection and =PageUp= and =PageDown= scroll the
+  transcript. =XENOLITH_HELIX_MOUSE=scroll= keeps the reports there instead; the
+  wheel then works in every mode and selection uses the terminal's Shift bypass.
   =terminal-ui-fullscreen-enter= enables reporting on every entry, so the module
   forgets its tracked state there and repaints it with the next frame.
 - =XENOLITH_HELIX=off= skips the layer at load; a serious install condition is
