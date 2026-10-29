@@ -6,6 +6,10 @@ Xenolith is to [[https://github.com/lambda-symbolics/autolith][Autolith]] what D
 Spacemacs are to Emacs, a curated configuration layer that supplies
 presentation, defaults, and commands without forking the upstream project.
 
+#+CAPTION: The Xenolith look: fullscreen frame, tool blocks, inline diffs,
+#+CAPTION: and the status band above the composer.
+[[file:example.png]]
+
 * Install
 
 #+BEGIN_SRC sh
