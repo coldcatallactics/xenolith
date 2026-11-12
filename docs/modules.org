@@ -267,10 +267,12 @@ opens command mode. The selection uses the =:selected= style.
   a bar in insert. The painted block does not depend on the terminal honouring
   that request.
 - Insert and command mode keep mouse reporting, so a click places the caret and
-  the wheel scrolls. Normal and select mode release it by default, so a plain
-  drag runs the terminal's own selection and =PageUp= and =PageDown= scroll the
-  transcript. =XENOLITH_HELIX_MOUSE=scroll= keeps the reports there instead; the
-  wheel then works in every mode and selection uses the terminal's Shift bypass.
+  the wheel scrolls. A hosted session keeps the reports in every mode, because
+  the client-side channel sidebar is clicked with the mouse; normal and select
+  mode then use the terminal's Shift bypass for text selection. A direct session
+  releases them in those modes, so a plain drag runs the terminal's own
+  selection and =PageUp= and =PageDown= scroll the transcript.
+  =XENOLITH_HELIX_MOUSE=scroll= keeps the wheel there too.
   =terminal-ui-fullscreen-enter= enables reporting on every entry, so the module
   forgets its tracked state there and repaints it with the next frame.
 - =XENOLITH_HELIX=off= skips the layer at load; a serious install condition is

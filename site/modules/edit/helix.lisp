@@ -55,12 +55,13 @@ nothing had selected.")
 
 (defparameter *xenolith-helix-mouse-scroll-p*
   (equal (uiop:getenv "XENOLITH_HELIX_MOUSE") "scroll")
-  "Whether normal and select mode keep the viewport's mouse reports.
+  "Whether a direct terminal keeps the viewport's mouse reports in normal and select mode.
 
-The wheel is a mouse report, so keeping it in those modes also takes the drag
-away from the terminal: text selection then needs the terminal's Shift bypass.
-Released by default, a plain drag selects, and PageUp and PageDown scroll the
-transcript. Set XENOLITH_HELIX_MOUSE=scroll to keep the wheel in those modes.")
+A hosted session always keeps them, because its client-side channel sidebar is
+clicked with the mouse. On a direct terminal, the wheel is a mouse report, so
+keeping it in those modes also takes the drag away from the terminal: text
+selection then needs the terminal's Shift bypass. Released by default, a plain
+drag selects, and PageUp and PageDown scroll the transcript.")
 
 (defparameter *xenolith-helix-motion-events*
   '((:left . #\h) (:right . #\l) (:up . #\k) (:down . #\j)
@@ -1442,21 +1443,31 @@ gives insert its bar and normal its block where it is honoured."
 (defvar *xenolith-helix-mouse-states* (make-hash-table :test #'eq)
   "The mouse reporting state last written for each UI.")
 
-(defun xenolith-helix--mouse-sequence (ui)
-  "Return the mouse reporting controls UI's mode wants, or NIL.
+(defun xenolith-helix--hosted-session-p (ui)
+  "Return true when UI's terminal is a client-side channel with a sidebar."
+  (let ((terminal (terminal-ui-terminal ui)))
+    (and terminal (typep terminal 'localgroup-terminal))))
 
-Insert and command mode keep the viewport's button reports, so a click still
-places the composer caret and the wheel scrolls. Normal and select mode release
-the mouse, so a plain drag runs the terminal's own selection and PageUp and
-PageDown scroll the transcript. With *XENOLITH-HELIX-MOUSE-SCROLL-P* on, those
-modes keep the reports too and selection needs the terminal's Shift bypass."
-  (case (xenolith-helix-mode ui)
+(defun xenolith-helix--mouse-sequence-for (mode hosted-p)
+  "Return the mouse reporting controls MODE wants on a HOSTED-P terminal, or NIL.
+
+A hosted session carries the channel sidebar in its client, and the sidebar is
+clicked with the mouse, so those reports stay on in every mode. A direct
+terminal releases them in normal and select mode so a plain drag runs its own
+selection, unless *XENOLITH-HELIX-MOUSE-SCROLL-P* keeps the wheel."
+  (case mode
     ((:insert :command) (mouse-reporting-enable-sequence))
     ((:normal :select)
-     (if *xenolith-helix-mouse-scroll-p*
+     (if (or hosted-p *xenolith-helix-mouse-scroll-p*)
          (mouse-reporting-enable-sequence)
          (mouse-reporting-disable-sequence)))
     (t                  nil)))
+
+(defun xenolith-helix--mouse-sequence (ui)
+  "Return the mouse reporting controls UI's mode wants, or NIL."
+  (xenolith-helix--mouse-sequence-for
+   (xenolith-helix-mode ui)
+   (xenolith-helix--hosted-session-p ui)))
 
 (defun xenolith-helix--paint-mouse (ui)
   "Write UI's mouse reporting state when it differs from the last one."
