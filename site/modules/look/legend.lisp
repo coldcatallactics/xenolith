@@ -63,6 +63,9 @@ so the frame still fills the terminal exactly."
                                   collect (if (< index committed)
                                               (clinedi:transcript-viewport-row-display viewport index)
                                               (aref live (- index committed)))))))
+        (when (fboundp 'fullscreen-terminal-ui-pinned-actions)
+          (dolist (region (fullscreen-terminal-ui-pinned-actions ui))
+            (incf (first region) (+ space 1))))
         (values (append visible
                         (make-list (max 0 (- space (length visible))) :initial-element "")
                         prefix

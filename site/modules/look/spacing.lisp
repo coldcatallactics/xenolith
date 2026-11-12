@@ -33,10 +33,15 @@
   "Whether the site layer widens transcript spacing.")
 
 (defun xenolith--spacing-columns (application)
-  "Return APPLICATION's terminal width, or NIL when it has no terminal."
+  "Return APPLICATION's transcript width, or NIL when it has no terminal.
+
+The sidebar narrows the transcript, so the width comes from the layout when a
+row is being built rather than from the whole terminal."
   (let ((ui (application-ui application)))
     (and ui (terminal-ui-terminal ui)
-         (terminal-columns (terminal-ui-terminal ui)))))
+         (if (fboundp 'application--transcript-columns)
+             (application--transcript-columns application)
+             (terminal-columns (terminal-ui-terminal ui))))))
 
 (defun xenolith--assistant-indented-body (application text)
   "Return TEXT wrapped with the configured margin on both sides."

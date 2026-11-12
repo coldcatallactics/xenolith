@@ -280,6 +280,11 @@ opens command mode. The selection uses the =:selected= style.
   mode, the second cancels. =application-input-controller--process-event= records
   the escape's mode and =application-input-controller--request-active-turn-can
   cellation= declines the cancellation outside it.
+- The sidebar belongs to the terminal client, which consumes =Ctrl-T= and the
+  =Esc= that closes its drawer, so the session never sees either key. The
+  client screen filter sends =(:xenolith-helix-insert)= to the session after a
+  toggle or a drawer close, and the composer returns to insert mode. Selecting
+  another channel opens a fresh composer, already in insert.
 
 The keys and range semantics follow Helix's tutor and default keymap, with word
 categories from =helix-core/src/chars.rs=, word movement from

@@ -65,6 +65,7 @@
     (:emphasis                         nil :italic t)
     (:code              :yellow-bright)
     (:code-copy         :gray          :underline t)
+    (:link              :aqua-bright   :underline t)
     (:lisp-prompt       :red-bright    :bold t)
     (:plan-active       :blue-bright   :bold t)
     (:timestamp-time    :gray)

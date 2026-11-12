@@ -229,8 +229,12 @@ own fills. SPANS without a marker render exactly as the tracked function does."
 
 One column stays unpainted so a streamed row never lands on the terminal's
 automatic wrap cell."
-  (let ((terminal (terminal-ui-terminal (application-ui application))))
-    (max 1 (- (terminal-columns terminal) reserve))))
+  (let* ((ui       (application-ui application))
+         (terminal (terminal-ui-terminal ui))
+         (columns  (if (fboundp 'application--transcript-columns)
+                       (application--transcript-columns application)
+                       (terminal-columns terminal))))
+    (max 1 (- columns reserve))))
 
 (defparameter *xenolith-surfaces-role-styles*
   '((:added-gutter   . :surface-diff-add)
