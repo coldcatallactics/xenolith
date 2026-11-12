@@ -341,7 +341,10 @@ columns, so the fill stops just past the text and grows with wrapped lines."
          application
          :role      ':user
          :timestamp timestamp
-         :body      (xenolith--user-message-body application text))
+         :body      (let ((body (xenolith--user-message-body application text)))
+                      (if (fboundp 'application-world-mention-spans)
+                          (application-world-mention-spans application body)
+                          body)))
       (serious-condition (condition)
         (setf *xenolith-surfaces-failure* condition)
         (xenolith-log "surfaces: user entry FAILED ~A" condition)

@@ -202,8 +202,8 @@ Adds markdown chrome.
   row's own style.
 - Line text, width, headings, inline code, and emphasis are left as the tracked
   renderer emits them; only styles and the two indent cells change.
-- A link has no URL span to quiet: the pinned renderer emits a link as literal
-  text, so =mdLinkUrl= has no counterpart yet.
+- Explicit Markdown links arrive as =:link= spans with their own widget, so the
+  module leaves them alone; the theme gives =:link= its accent.
 - =XENOLITH_MARKDOWN=off= skips the wrap at load. A serious condition falls back
   to the tracked renderer and is kept in =*xenolith-markdown-failure*=.
 
@@ -282,11 +282,11 @@ opens command mode. The selection uses the =:selected= style.
   mode, the second cancels. =application-input-controller--process-event= records
   the escape's mode and =application-input-controller--request-active-turn-can
   cellation= declines the cancellation outside it.
-- The sidebar belongs to the terminal client, which consumes =Ctrl-T= and the
-  =Esc= that closes its drawer, so the session never sees either key. The
-  client screen filter sends =(:xenolith-helix-insert)= to the session after a
-  toggle or a drawer close, and the composer returns to insert mode. Selecting
-  another channel opens a fresh composer, already in insert.
+- The channel sidebar belongs to the terminal client. A hosted session keeps
+  mouse reporting in every Helix mode, so the sidebar's rows stay clickable
+  without changing the composer's mode; =Ctrl-T= and the drawer's =Esc= stay
+  with the client. Selecting another channel opens a fresh composer, which
+  starts in insert.
 
 The keys and range semantics follow Helix's tutor and default keymap, with word
 categories from =helix-core/src/chars.rs=, word movement from

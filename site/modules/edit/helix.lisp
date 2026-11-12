@@ -34,12 +34,6 @@ nothing had selected.")
 (defvar *xenolith-helix-default-bindings* nil
   "The tracked default line-editor bindings, captured once for restoration.")
 
-(defvar *xenolith-original-localgroup-screen-filter-event* nil
-  "The client screen event filter underneath this module's wrapper, or NIL.")
-
-(defvar *xenolith-helix-screen-filter-wrapper* nil
-  "The client screen filter wrapper this module installed, for reload detection.")
-
 (defvar *xenolith-original-terminal-ui--matching-completions* nil
   "The tracked terminal-ui--matching-completions captured before the first wrap.")
 
@@ -71,13 +65,6 @@ drag selects, and PageUp and PageDown scroll the transcript.")
 The tracked editor moves its cursor for these events without touching the
 selection, which left a stale anchor behind and painted a range nothing had
 selected.")
-
-(defparameter *xenolith-helix-insert-event* '(:xenolith-helix-insert)
-  "The event a client sends when the sidebar toggle returns focus to the composer.
-
-The sidebar belongs to the terminal client, so the session never sees Ctrl-T or
-the Escape that closes its drawer. The client's screen filter sends this event
-after the toggle, and the session's composer returns to insert mode.")
 
 (defstruct (xenolith-helix-state (:constructor xenolith-helix-state-create)
                                 (:copier nil))
@@ -1558,12 +1545,6 @@ draft. Command mode leaves completion to the tracked policy, which opens the
 same candidate menu the slash and parenthesized lines show."
   (let ((state (xenolith-helix--state-for-ui ui)))
     (cond
-      ((and state (equal event *xenolith-helix-insert-event*))
-       (unless (eq (xenolith-helix-state-mode state) :insert)
-         (xenolith-helix--set-mode state :insert)
-         (with-terminal-ui-locked (ui)
-           (terminal-ui--repaint-live ui)))
-       (values :changed nil))
       ((and state
             (eq (xenolith-helix-state-mode state) :insert)
             (equal event '(:insert ":"))
@@ -1584,30 +1565,6 @@ same candidate menu the slash and parenthesized lines show."
                 ui event
                 :queue-completion-p queue-completion-p
                 :queue-editing-p queue-editing-p)))))
-
-(defun xenolith-helix--filter-screen-event (screen event)
-  "Filter SCREEN's EVENT, asking the session for insert mode after a sidebar toggle.
-
-The terminal client owns Ctrl-T and the Escape that closes the sidebar drawer,
-so the session never sees either key. When the filter consumes one, it returns
-the module's insert event for the session's composer instead."
-  (let* ((drawer-open-p
-           (and (fboundp 'localgroup-screen-drawer-open-p)
-                (localgroup-screen-drawer-open-p screen)))
-         (toggle-p
-           (or (and (boundp '*localgroup-screen-toggle-event*)
-                    (equal event *localgroup-screen-toggle-event*))
-               (and (eq event :escape) drawer-open-p)))
-         (result
-           (funcall *xenolith-original-localgroup-screen-filter-event* screen event))
-         (drawer-closed-p
-           (and drawer-open-p
-                (not (and (fboundp 'localgroup-screen-drawer-open-p)
-                          (localgroup-screen-drawer-open-p screen))))))
-    (if (and (eq result :ignore)
-             (or toggle-p drawer-closed-p))
-        *xenolith-helix-insert-event*
-        result)))
 
 ;;;; -- Escape routing --
 
@@ -1740,11 +1697,6 @@ mode; the next escape, from normal mode, interrupts the turn."
     (destructuring-bind (name previous-var wrapper-var wrapper) hook
       (when (fboundp name)
         (xenolith--chain name previous-var wrapper-var wrapper))))
-  (when (fboundp 'localgroup-screen-filter-event)
-    (xenolith--chain 'localgroup-screen-filter-event
-                     '*xenolith-original-localgroup-screen-filter-event*
-                     '*xenolith-helix-screen-filter-wrapper*
-                     #'xenolith-helix--filter-screen-event))
   (when (boundp '*xenolith-composer-mode-label-function*)
     (setf *xenolith-composer-mode-label-function* nil))
   (maphash (lambda (editor state)
@@ -1758,10 +1710,6 @@ mode; the next escape, from normal mode, interrupts the turn."
     (destructuring-bind (name previous-var wrapper-var wrapper) hook
       (declare (ignore wrapper))
       (xenolith--unchain name previous-var wrapper-var)))
-  (when (fboundp 'localgroup-screen-filter-event)
-    (xenolith--unchain 'localgroup-screen-filter-event
-                       '*xenolith-original-localgroup-screen-filter-event*
-                       '*xenolith-helix-screen-filter-wrapper*))
   (when (boundp '*xenolith-composer-mode-label-function*)
     (setf *xenolith-composer-mode-label-function* nil))
   (maphash (lambda (editor state)
