@@ -44,14 +44,6 @@
   (not (equal (uiop:getenv "XENOLITH_COMPOSER") "off"))
   "Whether the site layer boxes the composer.")
 
-(defvar *xenolith-composer-mode-label-function* nil
-  "Function of the UI returning a mode label and its style for the composer's
-last row, or NIL.
-
-The label sits at the right edge of the last row, so it never moves the
-draft or the cursor. Modules that own a mode set this to their own function;
-the composer leaves it alone.")
-
 (defun xenolith--composer-prefix (bar-p)
   "Return the margin and optional BAR-P bar as spans, and their text."
   (let ((margin *xenolith-composer-margin*))
@@ -73,17 +65,6 @@ the composer leaves it alone.")
                          (make-string margin :initial-element #\Space))))
                 (make-string margin :initial-element #\Space)))))
 
-(defun xenolith--composer-mode-label (ui)
-  "Return UI's composer mode label and style, or no values."
-  (let ((function *xenolith-composer-mode-label-function*))
-    (if function
-        (handler-case
-            (funcall function ui)
-          (serious-condition (condition)
-            (setf *xenolith-composer-failure* condition)
-            (values nil nil)))
-        (values nil nil))))
-
 (defparameter *xenolith-composer-fill-p* t
   "Whether the composer box paints its rows with the =:surface= fill.
 
@@ -104,29 +85,6 @@ TEXT and DISPLAY are the line's plain and styled content without the bar."
              (fboundp 'xenolith-fill-rendered-row))
         (funcall 'xenolith-fill-rendered-row terminal row :surface :reserve 1)
         row)))
-
-(defun xenolith--composer-footer (ui prefix prefix-text)
-  "Return the composer footer: the mode label at the right edge of a filled row.
-
-No row is returned when no module sets a mode label, so the box keeps three rows
-for a one-line draft instead of spending one on an empty bar. The composer's
-label seam is *xenolith-composer-mode-label-function*."
-  (multiple-value-bind (label label-style)
-      (xenolith--composer-mode-label ui)
-    (when label
-      (let* ((terminal    (terminal-ui-terminal ui))
-             (width       (max 1 (terminal-columns terminal)))
-             (label-width (text-cell-width label))
-             (gap         (max 0 (- width (text-cell-width prefix-text) label-width)))
-             (spaces      (make-string gap :initial-element #\Space))
-             (label-display
-               (terminal--render-spans
-                terminal
-                (list (terminal-span (or label-style :dim) label)))))
-        (xenolith--composer-boxed-line
-         ui prefix prefix-text
-         (concatenate 'string spaces label)
-         (concatenate 'string spaces label-display))))))
 
 (defun xenolith--composer-places (text wrapped)
   "Return each of WRAPPED's rows as (START TEXT DISPLAY) with its start in TEXT.
@@ -208,8 +166,8 @@ that, the frame wraps the boxed row and the continuation line loses the bar."
 Every physical line of the draft carries the accent bar and the fill, and the box
 pads above and below the input. The tracked builder ends its rows with an empty
 one, and the padding already supplies that blank line, so the trailing row is
-dropped. Without a mode label the box is three rows for a one-line draft and
-grows only as the draft wraps."
+dropped. The box is three rows for a one-line draft and grows only as the draft
+wraps."
   (multiple-value-bind (prefix prefix-text)
       (xenolith--composer-prefix t)
     (let ((shift (text-cell-width prefix-text))
@@ -218,15 +176,16 @@ grows only as the draft wraps."
                      rows)))
       (multiple-value-bind (lines cursor-line cursor-column)
           (xenolith--composer-lines ui shift draft cursor-row cursor-offset)
-        (let* ((boxed   (loop for (row text display) in lines
-                              collect (xenolith--composer-boxed-line
-                                       ui prefix prefix-text text display)))
-               (blank   (xenolith--composer-boxed-line ui prefix prefix-text "" ""))
-               (footer  (xenolith--composer-footer ui prefix prefix-text))
-               (padding (make-list *xenolith-composer-padding* :initial-element blank)))
-          (values (append padding boxed padding (when footer (list footer)))
-                  (+ cursor-line *xenolith-composer-padding*)
-                  (+ cursor-column shift)))))))
+          (let* ((boxed   (loop for (row text display) in lines
+                                collect (xenolith--composer-boxed-line
+                                         ui prefix prefix-text text display)))
+                 (padding (make-list *xenolith-composer-padding*
+                                     :initial-element
+                                     (xenolith--composer-boxed-line
+                                      ui prefix prefix-text "" ""))))
+            (values (append padding boxed padding)
+                    (+ cursor-line *xenolith-composer-padding*)
+                    (+ cursor-column shift)))))))
 
 (defvar *xenolith-composer-rows-wrapper* nil
   "The composer row wrapper this module installed, for reload detection.")

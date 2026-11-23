@@ -7,7 +7,7 @@
 ;;;; and reported instead of aborting startup, so one broken module degrades
 ;;;; the distribution rather than the session.
 
-(defparameter *xenolith-version* "0.1.0"
+(defparameter *xenolith-version* "0.2.0"
   "The Xenolith distribution version.")
 
 (defparameter *xenolith-modules*
@@ -17,9 +17,7 @@
     ("look/spacing" . "modules/look/spacing.lisp")
     ("look/surfaces" . "modules/look/surfaces.lisp")
     ("look/band" . "modules/look/band.lisp")
-    ("look/legend" . "modules/look/legend.lisp")
     ("look/markdown" . "modules/look/markdown.lisp")
-    ("edit/helix" . "modules/edit/helix.lisp")
     ("dev/preview" . "modules/dev/preview.lisp")
     ("dev/context-budget" . "modules/dev/context-budget.lisp"))
   "Ordered (NAME . RELATIVE-PATH) modules, relative to the site root.")

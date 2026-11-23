@@ -74,9 +74,9 @@ row is being built rather than from the whole terminal."
                                     (make-string *xenolith-tool-indent*
                                                  :initial-element #\Space)))
                              row)))
-        (if (<= (terminal--spans-width indented) maximum-width)
+        (if (<= (termdown:spans-width indented) maximum-width)
             indented
-            (append (terminal--clip-spans indented (max 0 (1- maximum-width)))
+            (append (termdown:fit-spans indented (max 0 (1- maximum-width)))
                     (list (terminal-span :dim "…")))))
     (serious-condition (condition)
       (setf *xenolith-spacing-failure* condition)

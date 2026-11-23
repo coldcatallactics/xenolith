@@ -91,8 +91,14 @@
     (:status-effort     :red-bright    :bold t)
     (:status-branch     :green-bright  :bold t)
     (:compaction-label  :blue-bright   :bold t)
-    (:compaction-track  :gray)
-    (:compaction-head   :blue-bright   :bold t)
+    (:progress-track    :gray)
+    (:progress-fill     :blue-bright)
+    (:status-progress-track :gray)
+    (:status-progress-fill  :yellow-bright :bold t)
+    (:model             :aqua-bright   :bold t)
+    (:effort            :red-bright    :bold t)
+    (:sidebar-action    :fg2)
+    (:sidebar-workspace :aqua-bright   :bold t)
     (:syntax-comment    :gray)
     (:syntax-keyword    :red-bright)
     (:syntax-string     :yellow-bright)
@@ -114,7 +120,8 @@ A nil COLOR keeps the terminal default for that style.")
 
 (defparameter *xenolith-gruvbox-band-styles*
   '(:status-plain :status-dim :status-accent :status-model :status-effort
-    :status-branch :compaction-label :compaction-track :compaction-head)
+    :status-branch :status-progress-track :status-progress-fill
+    :compaction-label)
   "Styles painted on the status band's background.")
 
 (defparameter *xenolith-gruvbox-band-background* :bg2

@@ -12,8 +12,6 @@ presentation, defaults, and commands without forking the upstream project.
 
 * Notable features
 
-- *Helix modality*: normal, select, insert, and command modes with Helix's word
-  motions in the composer; the mode shows in the status band.
 - *The look*: an Opencode-inspired composed terminal over a gruvbox palette: a fullscreen
   frame, filled tool, diff, and reasoning surfaces, a composer with an effort bar.
 - *Context budgeting* (opt-in): bounds a long child run by context fill rather
@@ -64,5 +62,5 @@ Xenolith is ISC-licensed; see =LICENSE=.
 
 - [[file:docs/modules.org][Modules]]: the site layer, every module, its switches, and
   status.
-- [[file:docs/look.org][The Xenolith look]]: the composed look, the theme, markdown chrome,
-  and modality.
+- [[file:docs/look.org][The Xenolith look]]: the composed look, the theme, and
+  markdown chrome.

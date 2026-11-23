@@ -119,7 +119,7 @@ span, so the row's plain text is unchanged."
          (when (plusp padding)
            (list (terminal-span style
                                 (make-string padding :initial-element #\Space))))
-         (terminal--pad-spans body inner :style style))))))
+         (termdown:pad-spans body inner :role style))))))
 
 (defun xenolith-surface-marker-p (span)
   "Return true when SPAN states a row fill."
@@ -308,68 +308,62 @@ body tone."
             (funcall previous application summary)
             (list (list (terminal-span :plain summary))))))))
 
-(defun xenolith--user-message-body (application text)
-  "Return TEXT as user message body rows filled with the user surface.
+(defun xenolith--split-rows (spans)
+  "Return SPANS split at newline spans into per-row span lists."
+  (let ((rows '())
+        (row  '()))
+    (dolist (span spans)
+      (if (xenolith--newline-span-p span)
+          (progn (push (nreverse row) rows)
+                 (setf row '()))
+          (push span row)))
+    (push (nreverse row) rows)
+    (nreverse rows)))
+
+(defun xenolith--user-message-body (application rows)
+  "Return the user message ROWS filled as a panel.
 
 The fill hugs the message instead of running to the frame edge: one blank
-surface row above and below, and a panel as wide as the longest line plus two
+surface row above and below, and a panel as wide as the longest row plus two
 columns, so the fill stops just past the text and grows with wrapped lines."
-  (let* ((limit (xenolith--surface-columns application))
-         (lines (uiop:split-string (application--indented-body application text)
-                                   :separator (list #\Newline))))
-    (when (and lines (string= (car (last lines)) ""))
-      (setf lines (butlast lines)))
-    (let* ((used  (loop for line in lines maximize (text-cell-width line)))
-           (width (max 1 (min limit (+ used 2)))))
-      (labels ((filled (line-text)
-                 ;; A fresh row each call: NCONC links into the last cell, so a
-                 ;; shared blank row would come to point into the next row.
-                 (xenolith-surface-row-spans
-                  (when line-text (list (terminal-span ':plain line-text)))
-                  width ':surface)))
-        (loop for line in (append (list nil) lines (list nil))
-              for first-p = t then nil
-              nconc (append (unless first-p
-                              (list (terminal-span ':plain (string #\Newline))))
-                            (filled line)))))))
+  (let* ((rows  (if (and rows (null (car (last rows)))) (butlast rows) rows))
+         (limit (xenolith--surface-columns application))
+         (used  (loop for row in rows
+                      maximize (text-cell-width (terminal--spans-text row))))
+         (width (max 1 (min limit (+ used 2)))))
+    (loop for row in (append (list nil) rows (list nil))
+          for first-p = t then nil
+          nconc (append (unless first-p
+                          (list (terminal-span :plain (string #\Newline))))
+                        (xenolith-surface-row-spans row width :surface)))))
 
 (defun xenolith--filled-user-message-entry (application text timestamp)
   "Return the user message entry with its rows filled like userMessageBg."
   (let ((previous *xenolith-surfaces-previous-user-entry*))
     (handler-case
-        (application--message-entry
-         application
-         :role      ':user
-         :timestamp timestamp
-         :body      (let ((body (xenolith--user-message-body application text)))
-                      (if (fboundp 'application-world-mention-spans)
-                          (application-world-mention-spans application body)
-                          body)))
+        (multiple-value-bind (entry source)
+            (funcall previous application text timestamp)
+          (let* ((index  (position-if #'xenolith--newline-span-p entry))
+                 (header (if index (subseq entry 0 (1+ index)) '()))
+                 (body   (if index (subseq entry (1+ index)) entry)))
+            (values (append header
+                            (xenolith--user-message-body
+                             application (xenolith--split-rows body)))
+                    source)))
       (serious-condition (condition)
         (setf *xenolith-surfaces-failure* condition)
         (xenolith-log "surfaces: user entry FAILED ~A" condition)
         (if previous
             (funcall previous application text timestamp)
-            (list (terminal-span ':plain
-                                 (application--indented-body application text))))))))
+            (values (list (terminal-span ':plain
+                                         (application--indented-body application text)))
+                    nil))))))
 
 (defun xenolith--mapped-role-span (role text)
   "Return one span for ROLE and TEXT, preferring the styles the look wants."
   (funcall *xenolith-surfaces-previous-syntax-span*
            (or (cdr (assoc role *xenolith-surfaces-role-styles*)) role)
            text))
-
-(defun xenolith--split-rows (spans)
-  "Return SPANS split at newline spans into per-row span lists."
-  (let ((rows '())
-        (row  '()))
-    (dolist (span spans)
-        (if (xenolith--newline-span-p span)
-          (progn (push (nreverse row) rows)
-                 (setf row '()))
-          (push span row)))
-    (push (nreverse row) rows)
-    (nreverse rows)))
 
 (defun xenolith--filled-block-entry (application entry)
   "Return ENTRY with every unfilled row inset and filled like a block.

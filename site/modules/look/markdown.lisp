@@ -2,12 +2,10 @@
 
 ;;;; Xenolith look: markdown chrome.
 ;;;;
-;;;; Blockquotes and rules are quieted and fenced code blocks are bordered. The
-;;;; pinned renderer emits a quoted line and a rule as plain text and indents a
-;;;; fenced row by two spaces. This module rewrites the spans the renderer
-;;;; returns without touching text or width: a quoted line takes the theme's
-;;;; grey, a rule the dim tone, and a fenced row swaps its two-space indent for
-;;;; a border glyph.
+;;;; Blockquotes and rules are quieted. The renderer emits a quoted line and a
+;;;; rule as plain text, so this module rewrites the spans it returns without
+;;;; touching text or width: a quoted line takes the theme's grey and a rule the
+;;;; dim tone.
 ;;;;
 ;;;; XENOLITH_MARKDOWN=off skips the wrap at load. A serious condition falls
 ;;;; back to the tracked renderer and is kept in *xenolith-markdown-failure*.
@@ -17,9 +15,6 @@
 
 (defparameter *xenolith-markdown-rule-style* :dim
   "Style for a horizontal rule: the dim tone.")
-
-(defparameter *xenolith-markdown-border* "│ "
-  "The left border a fenced code row takes in place of two spaces.")
 
 (defvar *xenolith-original-markdown-render-line* nil
   "The markdown line renderer underneath this module's wrapper, or NIL.")
@@ -61,31 +56,12 @@
                 span))
           row))
 
-(defun xenolith--markdown-border (row)
-  "Return ROW with its two-space indent replaced by the code border."
-  (let ((first (first row)))
-    (if (and (terminal-span-p first)
-             (>= (length (terminal-span-text first)) 2)
-             (string= (subseq (terminal-span-text first) 0 2) "  "))
-        (cons (terminal-span (terminal-span-style first)
-                             (concatenate 'string
-                                          *xenolith-markdown-border*
-                                          (subseq (terminal-span-text first) 2)))
-              (rest row))
-        row)))
-
 (defun xenolith--markdown-render-line (renderer line)
-  "Return LINE rendered with the look's quote, rule, and code chrome."
+  "Return LINE rendered with the look's quote and rule chrome."
   (let ((previous *xenolith-original-markdown-render-line*))
     (handler-case
-        (let* ((code-before (termdown::markdown-renderer-code-open-p renderer))
-               (rows        (funcall previous renderer line))
-               (code-p      (or code-before
-                                (termdown::markdown-renderer-code-open-p
-                                 renderer))))
+        (let ((rows (funcall previous renderer line)))
           (cond
-            (code-p
-             (mapcar #'xenolith--markdown-border rows))
             ((xenolith--markdown-quote-p line)
              (mapcar (lambda (row)
                        (xenolith--markdown-recolour
@@ -103,8 +79,8 @@
         (funcall previous renderer line)))))
 
 (when *xenolith-install-markdown-p*
-  (when (fboundp 'terminal-markdown-render-line)
-    (xenolith--chain 'terminal-markdown-render-line
+  (when (fboundp 'termdown:markdown-render-line)
+    (xenolith--chain 'termdown:markdown-render-line
                      '*xenolith-original-markdown-render-line*
                      '*xenolith-markdown-wrapper*
                      #'xenolith--markdown-render-line)))

@@ -108,7 +108,7 @@ SURFACE names a fill style for every row when the site layer ships one."
                      (terminal-span :plain
                                     (make-string indent :initial-element #\Space)))))
     (flet ((line-rows (line)
-             (loop for row in (application--markdown-rows renderer line)
+             (loop for row in (termdown:markdown-render-line renderer line)
                    append (append (when margin (list margin))
                                   row
                                   (list (terminal-span :plain
