@@ -75,7 +75,6 @@
     (:mermaid-label     :green-bright)
     (:agent-spinner     :green-bright  :bold t)
     (:agent-name        :aqua-bright   :bold t)
-    (:agent-role        :purple-bright)
     (:agent-tool        :yellow-bright)
     (:child-name        :purple-bright :bold t)
     (:command-spinner   :green-bright  :bold t)

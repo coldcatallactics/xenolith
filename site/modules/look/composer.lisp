@@ -19,7 +19,7 @@
   '(("none"  . :dim)
     ("low"   . :syntax-type)
     ("medium" . :plan-active)
-    ("high"  . :agent-role)
+    ("high"  . :syntax-number)
     ("xhigh" . :status-effort)
     ("max"   . :notice)
     ("ultra" . :notice))

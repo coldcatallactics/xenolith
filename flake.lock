@@ -7,11 +7,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1795447341,
-        "narHash": "sha256-TQ/aOvNyREuy8fKRsR5BL9d1KVLkqydTqtAZkGX6nRk=",
+        "lastModified": 1795457475,
+        "narHash": "sha256-3UmMuD5fXMRCh+8c+8BZMinuUcg1vYrEZmSBQhA6fuw=",
         "owner": "lambda-symbolics",
         "repo": "autolith",
-        "rev": "f7a02d19aed242c4500145a5208d98a7e61fc293",
+        "rev": "47961cf9c810eb1b466cc07be47ff40e9fad4ef9",
         "type": "github"
       },
       "original": {
@@ -74,11 +74,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1792773339,
-        "narHash": "sha256-rZLrzrC6i+jnTAlvPZHogKDulY7WWDEv9hJeHieO7Zw=",
+        "lastModified": 1795234589,
+        "narHash": "sha256-f/VVvxf5RsQgWVhUtefoca5ktVg0DA2bnkMOcmSnozo=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "3ec636362e1816bc2f0888fa0fa2c69f1bc9e504",
+        "rev": "2786a2a72088ecf32aea5b3ec52099e6a7cff78f",
         "type": "github"
       },
       "original": {
